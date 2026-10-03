@@ -1,0 +1,18 @@
+Images in inventory: 7200; dropped (unreadable / unknown class): 0; excluded by regex 'aug': 203; final split: 6997 images -> 5205 groups
+
+split       train   val  test  total
+label                               
+glioma       1260   271   269   1800
+meningioma   1118   240   239   1597
+notumor      1259   270   271   1800
+pituitary    1261   270   269   1800
+total        4898  1051  1048   6997
+
+Percent of total: train 70.0%, val 15.0%, test 15.0%
+Groups spanning more than one split: 0
+Groups with conflicting labels: 16
+Near-duplicate groups (>1 image): 753, containing 2545 images (36%)
+Largest group: 53 images
+seed=42  hamming_threshold=2
+
+Excluded by regex, per class: {'meningioma': 203}

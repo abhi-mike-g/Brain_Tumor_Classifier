@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
+
+# raw images are large and come from Kaggle; never commit them
+data/raw/*
+!data/raw/.gitkeep
+
+# checkpoints are big; share via Drive if needed
+*.pt
+*.pth
+
+# splits/split.csv and splits/split_report.txt ARE committed on purpose.
