@@ -19,7 +19,6 @@ from sklearn.metrics import f1_score
 
 from .common import load_config, rel, seed_everything
 from .data import make_loader
-from .resnet18 import build_model
 
 
 def run_epoch(model, loader, device, criterion, optimizer=None, scaler=None):
@@ -47,6 +46,7 @@ def run_epoch(model, loader, device, criterion, optimizer=None, scaler=None):
 
 def main() -> None:
     ap = argparse.ArgumentParser()
+    ap.add_argument("--model", default="resnet18", choices=["resnet18", "mlp"], help="model architecture (default: resnet18)")
     ap.add_argument("--epochs", type=int)
     ap.add_argument("--limit", type=int, help="max images per class per split (smoke test)")
     ap.add_argument("--device")
@@ -54,12 +54,13 @@ def main() -> None:
     ap.add_argument("--run-name")
     args = ap.parse_args()
 
-    cfg = load_config("resnet18")
+    cfg = load_config(args.model)
+    cfg["model_name"] = args.model
     if args.epochs:
         cfg["epochs"] = args.epochs
     if args.scratch:
         cfg["pretrained"] = False
-        cfg["run_name"] = "resnet18_scratch"
+        cfg["run_name"] = f"{args.model}_scratch"
     if args.run_name:
         cfg["run_name"] = args.run_name
 
@@ -71,9 +72,20 @@ def main() -> None:
 
     kw = dict(batch_size=cfg["batch_size"], num_workers=cfg["num_workers"], limit_per_class=args.limit, seed=cfg["seed"])
     train_dl, val_dl = make_loader(cfg, "train", **kw), make_loader(cfg, "val", **kw)
-    print(f"device={device}  train={len(train_dl.dataset)}  val={len(val_dl.dataset)}  pretrained={cfg['pretrained']}")
+    pretrained_val = cfg.get("pretrained", "n/a")
+    print(f"model={args.model}  device={device}  train={len(train_dl.dataset)}  val={len(val_dl.dataset)}  pretrained={pretrained_val}")
 
-    model = build_model(len(cfg["classes"]), cfg["pretrained"], cfg["dropout"]).to(device)
+    if args.model == "mlp":
+        from .mlp import build_model as build_mlp_model
+        model = build_mlp_model(
+            num_classes=len(cfg["classes"]),
+            in_size=cfg["image"]["size"],
+            hidden_dims=tuple(cfg.get("hidden_dims", (512, 256, 64))),
+            dropout=cfg.get("dropout", 0.3),
+        ).to(device)
+    else:
+        from .resnet18 import build_model as build_resnet18_model
+        model = build_resnet18_model(len(cfg["classes"]), cfg.get("pretrained", True), cfg.get("dropout", 0.2)).to(device)
     criterion = nn.CrossEntropyLoss()
     opt = torch.optim.AdamW(model.parameters(), lr=cfg["lr"], weight_decay=cfg["weight_decay"])
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=cfg["epochs"])
