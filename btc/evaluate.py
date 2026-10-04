@@ -17,7 +17,6 @@ from sklearn.metrics import classification_report
 from .common import load_config, rel
 from .data import make_loader
 from .metrics import compute_metrics, count_params, measure_latency_ms, save_confusion_png
-from .resnet18 import build_model
 
 
 @torch.no_grad()
@@ -34,22 +33,47 @@ def predict(model, loader, device):
 
 def main() -> None:
     ap = argparse.ArgumentParser()
+    ap.add_argument("--model", default=None, choices=["resnet18", "mlp"], help="model architecture (inferred from config.json if not set)")
     ap.add_argument("--run-name", default=None)
     ap.add_argument("--limit", type=int)
     ap.add_argument("--device")
     args = ap.parse_args()
 
-    cfg = load_config("resnet18")
-    run_dir = rel(cfg["out_dir"]) / (args.run_name or cfg["run_name"])
+    model_arg = args.model
+    if model_arg:
+        cfg = load_config(model_arg)
+        run_dir = rel(cfg["out_dir"]) / (args.run_name or cfg["run_name"])
+    elif args.run_name and (rel("results/mlp") / args.run_name / "config.json").exists():
+        cfg = load_config("mlp")
+        run_dir = rel("results/mlp") / args.run_name
+    else:
+        cfg = load_config("resnet18")
+        run_dir = rel(cfg["out_dir"]) / (args.run_name or cfg["run_name"])
+
     saved = json.loads((run_dir / "config.json").read_text())  # the config this run was trained with
     classes = saved["classes"]
     device = torch.device(args.device or ("cuda" if torch.cuda.is_available() else "cpu"))
 
+    model_type = saved.get("model_name", args.model or "resnet18").lower()
     ckpt = torch.load(run_dir / "best.pt", map_location=device)
-    model = build_model(len(classes), pretrained=False, dropout=saved["dropout"]).to(device)
+
+    if model_type == "mlp":
+        model_label = "MLP"
+        from .mlp import build_model as build_mlp_model
+        model = build_mlp_model(
+            num_classes=len(classes),
+            in_size=saved["image"]["size"],
+            hidden_dims=tuple(saved.get("hidden_dims", (512, 256, 64))),
+            dropout=saved.get("dropout", 0.3),
+        ).to(device)
+    else:
+        model_label = "ResNet18"
+        from .resnet18 import build_model as build_resnet18_model
+        model = build_resnet18_model(len(classes), pretrained=False, dropout=saved.get("dropout", 0.2)).to(device)
+
     model.load_state_dict(ckpt["model"])
 
-    result = {"model": "ResNet18", "run_name": saved["run_name"], "pretrained": saved["pretrained"],
+    result = {"model": model_label, "run_name": saved["run_name"], "pretrained": saved.get("pretrained", False),
               "best_epoch": ckpt["epoch"], "seed": saved["seed"], "device": str(device)}
     for split in ("val", "test"):
         dl = make_loader(saved, split, saved["batch_size"], saved["num_workers"], args.limit)
@@ -62,7 +86,7 @@ def main() -> None:
             print(classification_report(ys, ps, target_names=classes, digits=4, zero_division=0))
             (run_dir / "classification_report.txt").write_text(
                 classification_report(ys, ps, target_names=classes, digits=4, zero_division=0))
-            save_confusion_png(m["confusion_matrix"], classes, run_dir / "confusion_matrix.png", f"ResNet18 - test")
+            save_confusion_png(m["confusion_matrix"], classes, run_dir / "confusion_matrix.png", f"{model_label} - test")
             df = dl.dataset.df[["path", "label"]].copy()
             df["pred"] = [classes[i] for i in ps]
             df["correct"] = df.label == df.pred

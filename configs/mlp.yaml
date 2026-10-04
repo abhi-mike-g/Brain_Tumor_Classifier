@@ -1,0 +1,14 @@
+# Varun Naik (Member 1): MLP Baseline
+model_name: mlp
+run_name: mlp_baseline
+out_dir: results/mlp
+
+hidden_dims: [512, 256, 64]
+dropout: 0.3
+
+epochs: 30
+batch_size: 64
+lr: 1.0e-3
+weight_decay: 1.0e-4
+patience: 7
+num_workers: 2
