@@ -1,0 +1,13 @@
+# Neema's model: ResNet18 (Member 2).
+run_name: resnet18_pretrained
+out_dir: results/resnet18
+
+pretrained: true        # ImageNet-initialised fine-tuning. Set false for the from-scratch ablation.
+dropout: 0.2
+
+epochs: 20
+batch_size: 32
+lr: 3.0e-4
+weight_decay: 1.0e-4
+patience: 5             # early stop on val macro-F1
+num_workers: 2
