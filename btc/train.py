@@ -1,7 +1,9 @@
-"""Train ResNet18 on the fixed split.
+"""Train one architecture on the fixed split.
 
-    python -m btc.train                       # uses configs/resnet18.yaml
-    python -m btc.train --scratch             # from-scratch ablation (pretrained=false)
+    python -m btc.train                              # ResNet18 (configs/resnet18.yaml)
+    python -m btc.train --model cnn_lstm             # CNN-LSTM
+    python -m btc.train --model vit                  # Vision Transformer
+    python -m btc.train --scratch                    # from-scratch ablation (pretrained=false)
     python -m btc.train --epochs 1 --limit 20 --device cpu    # quick smoke test
 
 Model selection uses VALIDATION macro-F1 only. The test set is touched by btc.evaluate.
@@ -19,6 +21,7 @@ from sklearn.metrics import f1_score
 
 from .common import load_config, rel, seed_everything
 from .data import make_loader
+from .models import MODEL_CHOICES, build_model
 
 
 def run_epoch(model, loader, device, criterion, optimizer=None, scaler=None):
@@ -46,7 +49,7 @@ def run_epoch(model, loader, device, criterion, optimizer=None, scaler=None):
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", default="resnet18", choices=["resnet18", "mlp"], help="model architecture (default: resnet18)")
+    ap.add_argument("--model", default="resnet18", choices=list(MODEL_CHOICES), help="model architecture (default: resnet18)")
     ap.add_argument("--epochs", type=int)
     ap.add_argument("--limit", type=int, help="max images per class per split (smoke test)")
     ap.add_argument("--device")
@@ -75,17 +78,7 @@ def main() -> None:
     pretrained_val = cfg.get("pretrained", "n/a")
     print(f"model={args.model}  device={device}  train={len(train_dl.dataset)}  val={len(val_dl.dataset)}  pretrained={pretrained_val}")
 
-    if args.model == "mlp":
-        from .mlp import build_model as build_mlp_model
-        model = build_mlp_model(
-            num_classes=len(cfg["classes"]),
-            in_size=cfg["image"]["size"],
-            hidden_dims=tuple(cfg.get("hidden_dims", (512, 256, 64))),
-            dropout=cfg.get("dropout", 0.3),
-        ).to(device)
-    else:
-        from .resnet18 import build_model as build_resnet18_model
-        model = build_resnet18_model(len(cfg["classes"]), cfg.get("pretrained", True), cfg.get("dropout", 0.2)).to(device)
+    model = build_model(cfg).to(device)
     criterion = nn.CrossEntropyLoss()
     opt = torch.optim.AdamW(model.parameters(), lr=cfg["lr"], weight_decay=cfg["weight_decay"])
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=cfg["epochs"])
@@ -109,7 +102,10 @@ def main() -> None:
             if bad >= cfg["patience"]:
                 print(f"early stop (no val-F1 gain for {bad} epochs)")
                 break
-    print(f"best val macro-F1 {best:.4f} -> {run_dir / 'best.pt'}\nnext: python -m btc.evaluate --run-name {cfg['run_name']}")
+    print(
+        f"best val macro-F1 {best:.4f} -> {run_dir / 'best.pt'}\n"
+        f"next: python -m btc.evaluate --model {args.model} --run-name {cfg['run_name']}"
+    )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,15 @@
+# Vansh Vakharia (Member 4): Vision Transformer.
+# torchvision ViT-B/32, ImageNet-1K weights, 224 input (patch 32 -> 7x7 tokens).
+model_name: vit
+run_name: vit_b32_pretrained
+out_dir: results/vit
+
+pretrained: true
+dropout: 0.1
+
+epochs: 12
+batch_size: 16
+lr: 1.0e-4
+weight_decay: 1.0e-4
+patience: 4             # early stop on val macro-F1
+num_workers: 0

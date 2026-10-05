@@ -1,0 +1,16 @@
+# Abhidutta Mukund Giri (Member 3): CNN-LSTM. Trained from scratch on the fixed split.
+model_name: cnn_lstm
+run_name: cnn_lstm
+out_dir: results/cnn_lstm
+
+pretrained: false
+dropout: 0.3
+lstm_hidden_size: 256
+lstm_layers: 1
+
+epochs: 15
+batch_size: 32
+lr: 1.0e-3
+weight_decay: 1.0e-4
+patience: 5             # early stop on val macro-F1
+num_workers: 0          # CPU training; leave the cores to the model

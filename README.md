@@ -49,10 +49,17 @@ Test set (1,048 images), macro-averaged over the four classes. Chosen checkpoint
 macro-F1. Single run, seed 42.
 
 | Model | Accuracy | Precision | Recall | F1 | Parameters | Latency (ms/img) |
+| --- | --- | --- | --- | --- | --- | --- |
 | **ResNet18** (ImageNet-pretrained) | **0.9838** | **0.9837** | **0.9835** | **0.9836** | 11,178,564 | 4.4 (Colab GPU) |
+| CNN-LSTM (from scratch) | 0.9046 | 0.9037 | 0.9025 | 0.9026 | 2,360,068 | 6.9 (CPU) |
+| ViT-B/32 (ImageNet-pretrained) | 0.9017 | 0.9037 | 0.9018 | 0.9016 | 87,458,308 | 26.9 (CPU) |
 
 ResNet18 per-class F1: glioma 0.9777, meningioma 0.9790, notumor 0.9889, pituitary 0.9889.
-Latency is only comparable between models measured on the same hardware.
+CNN-LSTM per-class F1: glioma 0.9005, meningioma 0.8337, notumor 0.9313, pituitary 0.9449.
+ViT-B/32 per-class F1: glioma 0.8757, meningioma 0.8780, notumor 0.9141, pituitary 0.9385.
+
+CNN-LSTM trained for 15 epochs on CPU (best validation epoch 13). ViT-B/32 trained for 12 epochs on CPU (best validation epoch 12).
+Latency is batch size 1. ResNet18 was timed on a Colab GPU; CNN-LSTM and ViT were timed on CPU. Compare latency only across runs on the same device.
 
 ## Repository layout
 
