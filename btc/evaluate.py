@@ -17,6 +17,7 @@ from sklearn.metrics import classification_report
 from .common import load_config, rel
 from .data import make_loader
 from .metrics import compute_metrics, count_params, measure_latency_ms, save_confusion_png
+from .models import LABELS, MODEL_CHOICES, build_model, normalize_name
 
 
 @torch.no_grad()
@@ -33,7 +34,7 @@ def predict(model, loader, device):
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", default=None, choices=["resnet18", "mlp"], help="model architecture (inferred from config.json if not set)")
+    ap.add_argument("--model", default=None, choices=list(MODEL_CHOICES), help="model architecture (inferred from config.json if not set)")
     ap.add_argument("--run-name", default=None)
     ap.add_argument("--limit", type=int)
     ap.add_argument("--device")
@@ -43,34 +44,29 @@ def main() -> None:
     if model_arg:
         cfg = load_config(model_arg)
         run_dir = rel(cfg["out_dir"]) / (args.run_name or cfg["run_name"])
-    elif args.run_name and (rel("results/mlp") / args.run_name / "config.json").exists():
-        cfg = load_config("mlp")
-        run_dir = rel("results/mlp") / args.run_name
+    elif args.run_name:
+        cfg, run_dir = load_config("resnet18"), None
+        for name in MODEL_CHOICES:
+            candidate_cfg = load_config(name)
+            candidate = rel(candidate_cfg["out_dir"]) / args.run_name
+            if (candidate / "config.json").exists():
+                cfg, run_dir = candidate_cfg, candidate
+                break
+        if run_dir is None:
+            run_dir = rel(cfg["out_dir"]) / args.run_name
     else:
         cfg = load_config("resnet18")
-        run_dir = rel(cfg["out_dir"]) / (args.run_name or cfg["run_name"])
+        run_dir = rel(cfg["out_dir"]) / cfg["run_name"]
 
     saved = json.loads((run_dir / "config.json").read_text())  # the config this run was trained with
     classes = saved["classes"]
     device = torch.device(args.device or ("cuda" if torch.cuda.is_available() else "cpu"))
 
-    model_type = saved.get("model_name", args.model or "resnet18").lower()
-    ckpt = torch.load(run_dir / "best.pt", map_location=device)
-
-    if model_type == "mlp":
-        model_label = "MLP"
-        from .mlp import build_model as build_mlp_model
-        model = build_mlp_model(
-            num_classes=len(classes),
-            in_size=saved["image"]["size"],
-            hidden_dims=tuple(saved.get("hidden_dims", (512, 256, 64))),
-            dropout=saved.get("dropout", 0.3),
-        ).to(device)
-    else:
-        model_label = "ResNet18"
-        from .resnet18 import build_model as build_resnet18_model
-        model = build_resnet18_model(len(classes), pretrained=False, dropout=saved.get("dropout", 0.2)).to(device)
-
+    model_type = normalize_name(saved.get("model_name", args.model or "resnet18"))
+    model_label = LABELS[model_type]
+    ckpt = torch.load(run_dir / "best.pt", map_location=device, weights_only=False)
+    saved = {**saved, "model_name": model_type}
+    model = build_model(saved, pretrained=False).to(device)
     model.load_state_dict(ckpt["model"])
 
     result = {"model": model_label, "run_name": saved["run_name"], "pretrained": saved.get("pretrained", False),
