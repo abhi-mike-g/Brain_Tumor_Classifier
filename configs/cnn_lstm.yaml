@@ -1,0 +1,13 @@
+model_name: cnn_lstm
+run_name: cnn_lstm
+out_dir: results/cnn_lstm
+
+lstm_hidden_size: 128
+dropout: 0.3
+
+epochs: 20
+batch_size: 32
+lr: 3.0e-4
+weight_decay: 1.0e-4
+patience: 5
+num_workers: 2

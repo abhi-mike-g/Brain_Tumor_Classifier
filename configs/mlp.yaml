@@ -3,6 +3,7 @@ model_name: mlp
 run_name: mlp_baseline
 out_dir: results/mlp
 
+downsample_size: 56
 hidden_dims: [512, 256, 64]
 dropout: 0.3
 

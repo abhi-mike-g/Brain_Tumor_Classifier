@@ -4,6 +4,10 @@ Comparative performance evaluation of four deep learning architectures (MLP, Res
 Vision Transformer) for four-class brain tumour classification from MRI images.
 ICT-4442 Deep Learning Project, Manipal Institute of Technology, MAHE.
 
+> **Completion status (30 October 2026):** All four models have saved test evaluations on the
+> shared split, and the comparison table is generated. The MLP, CNN-LSTM, and ViT runs are
+> preliminary CPU experiments; the final report and team-required sign-offs remain. Raw images are not committed.
+
 ## Abstract
 
 Brain tumor classification from Magnetic Resonance Imaging (MRI) images is an important application of deep learning in medical image analysis. This project presents a comparative evaluation of four deep learning architectures Multilayer Perceptron (MLP), ResNet18, CNN-LSTM, and Vision Transformer (ViT) for multi-class brain tumour classification. The study uses the publicly available MRI Brain Tumour Image Dataset compiled by Nickparvar, consisting of T1-weighted MRI images with contrast enhancement categorized into four classes: Glioma, Meningioma, Pituitary Tumour, and No Tumour. A common preprocessing and experimental framework are adopted across all four architectures to facilitate a controlled comparison. The images are subjected to consistent resizing and normalization before model training and evaluation. The selected architectures represent different approaches to visual representation learning: the MLP provides a fully connected baseline, ResNet18 uses convolutional residual learning, CNN-LSTM combines spatial feature extraction with sequential modelling, and ViT uses patch-based representations and self-attention. Model performance is evaluated using accuracy, precision, recall, F1-score, class-wise confusion patterns, parameter efficiency, and computational requirements. The study aims to analyse how architectural differences influence classification performance and computational characteristics under a common experimental setup, providing a systematic comparison of diverse deep learning approaches for automated brain MRI classification.
@@ -21,8 +25,9 @@ Brain tumor classification from Magnetic Resonance Imaging (MRI) images is an im
 Source: [Brain Tumor MRI Dataset](https://www.kaggle.com/datasets/masoudnickparvar/brain-tumor-mri-dataset) (Nickparvar, Kaggle).
 Classes: `glioma`, `meningioma`, `notumor`, `pituitary`.
 
-**Dataset version note.** 
-The synopsis cites 7,023 images. The current Kaggle download has **7,200** images and includes **203 augmented (synthetic) meningioma files** with `aug` in the file name. These are excluded, so the experiments use **6,997 images**.
+**Dataset version note.** The interim report cites 7,023 images. The audited copy available when
+the split was created contained **7,200** images, including **203 meningioma files** with `aug`
+in the filename. Those files were excluded, so the committed split contains **6,997 images**.
 
 **One split for everyone: `splits/split.csv`.** All images from Kaggle's Training and Testing
 folders are pooled, exact and near-duplicate scans (perceptual hash distance <= 2) are grouped,
@@ -43,16 +48,30 @@ Full report: `splits/split_report.txt`. Sample images: `reports/samples.png`.
 ImageNet mean/std normalisation. Train-only augmentation: random crop (scale >= 0.85),
 rotation up to 10 degrees, horizontal flip. Validation and test images are not augmented.
 
-## Results
+## Preliminary results (all four models)
 
-Test set (1,048 images), macro-averaged over the four classes. Chosen checkpoint: best validation
-macro-F1. Single run, seed 42.
+Saved test evaluations use the same 1,048-image test split and seed 42; precision, recall, and F1
+are macro-averaged over four classes. ResNet18 selected its checkpoint by best validation macro-F1.
+The MLP, CNN-LSTM, and compact ViT were each limited to five CPU epochs. Treat these runs as
+preliminary, not optimized.
 
 | Model | Accuracy | Precision | Recall | F1 | Parameters | Latency (ms/img) |
-| **ResNet18** (ImageNet-pretrained) | **0.9838** | **0.9837** | **0.9835** | **0.9836** | 11,178,564 | 4.4 (Colab GPU) |
+| **ResNet18** (ImageNet-pretrained) | **0.9838** | **0.9837** | **0.9835** | **0.9836** | 11,178,564 | 88.9 (CPU; current re-evaluation) |
+| MLP (5 epochs) | 0.7071 | 0.7194 | 0.7018 | 0.7052 | 4,967,108 | 0.8 (CPU) |
+| CNN-LSTM (5 CPU epochs) | 0.8387 | 0.8476 | 0.8389 | 0.8394 | 230,532 | 2.9 (CPU) |
+| ViT (5 CPU epochs) | 0.6861 | 0.6847 | 0.6801 | 0.6806 | 524,164 | 1.7 (CPU) |
 
 ResNet18 per-class F1: glioma 0.9777, meningioma 0.9790, notumor 0.9889, pituitary 0.9889.
-Latency is only comparable between models measured on the same hardware.
+MLP per-class F1: glioma 0.6610, meningioma 0.5145, notumor 0.8000, pituitary 0.8452.
+CNN-LSTM per-class F1: glioma 0.8023, meningioma 0.7468, notumor 0.9168, pituitary 0.8918.
+Its largest error pattern is glioma predicted as meningioma (57 test images). MLP, CNN-LSTM,
+and ResNet18 were each trained for five CPU epochs for these preliminary runs; ResNet18 uses
+ImageNet-pretrained weights. ViT per-class F1: glioma 0.6427, meningioma 0.5055, notumor 0.8177,
+pituitary 0.7563. Its largest test confusion was meningioma predicted as glioma (78 images).
+ViT uses 32x32 patches, 96-dimensional embeddings,
+and two encoder layers. All four saved evaluations use the same test split; latency is only
+comparable between models measured on the same hardware and software configuration. The full
+comparison is in `reports/model_comparison.md`.
 
 ## Repository layout
 
@@ -62,7 +81,12 @@ configs/<model>.yaml       settings for one model
 btc/data.py                shared dataset + transforms
 btc/metrics.py             shared metrics (accuracy, P/R/F1, confusion matrix, params, latency)
 btc/audit.py, split.py     Phase 1: dataset inspection and the fixed split
-btc/resnet18.py, train.py, evaluate.py     ResNet18 (template for the other models)
+btc/mlp.py                 MLP classifier
+btc/resnet18.py            ResNet18 classifier
+btc/cnn_lstm.py            CNN-LSTM classifier
+btc/vit.py                 compact Vision Transformer
+btc/train.py, evaluate.py  shared training and evaluation entry points
+btc/compare.py             comparison table with test-split consistency checks
 splits/split.csv           THE fixed split. Do not regenerate.
 results/<model>/<run>/     metrics.json, confusion_matrix.png, predictions.csv, history.csv, ...
 ```
@@ -77,8 +101,29 @@ pip install -r requirements.txt
 python -m btc.download          # downloads the Kaggle data into data/raw
 ```
 
+If Kaggle requests authentication, configure the Kaggle API credentials locally; never commit
+`kaggle.json` or paste its contents into a chat. Then run one model at a time:
+
+```powershell
+python -m btc.train --model mlp
+python -m btc.evaluate --model mlp
+python -m btc.train --model resnet18
+python -m btc.evaluate --model resnet18
+python -m btc.train --model cnn_lstm
+python -m btc.evaluate --model cnn_lstm
+python -m btc.train --model vit
+python -m btc.evaluate --model vit
+python -m btc.compare
+```
+
+`btc.compare` refuses to present a complete comparison until all four configured test
+evaluations exist and share the same split fingerprint and class supports. For an explicitly
+labelled progress table, use `python -m btc.compare --allow-incomplete`.
+
 `splits/split.csv` is already in the repo, so you do **not** need to run `btc.audit` or
-`btc.split`. Training needs a GPU; the free Colab T4 works (about 30 s per epoch for ResNet18).
+`btc.split`. Training is fastest on a GPU; CPU is supported but full-data runs can take substantially longer.
+The recorded ResNet18 test metrics are from the existing checkpoint; its latency was remeasured on
+CPU for a consistent comparison target.
 
 ```python
 from btc.common import load_config
@@ -95,7 +140,7 @@ Rules, so the comparison stays fair:
 1. Use `splits/split.csv` unchanged. Never regenerate it.
 2. Use the loaders from `btc/data.py`. Inputs are `3 x 224 x 224` tensors; the MLP can flatten or downsample inside the model.
 3. Pick epochs, learning rate and the checkpoint using the **validation** set only. Evaluate on test once, at the end.
-4. Save outputs with `btc/metrics.py` into `results/<model>/<run_name>/metrics.json`, so all four files have the same fields.
+4. Save outputs with `btc/metrics.py` into `results/<model>/<run_name>/metrics.json`, so all model runs have the same fields.
 5. Do not commit raw images (`data/raw` is git-ignored) or large checkpoints, except one final `best.pt` if the team wants it.
 
 ## Limitations

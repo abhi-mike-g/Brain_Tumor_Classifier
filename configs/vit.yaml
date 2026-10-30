@@ -1,0 +1,16 @@
+model_name: vit
+run_name: vit
+out_dir: results/vit
+
+patch_size: 32
+embed_dim: 96
+depth: 2
+num_heads: 3
+dropout: 0.1
+
+epochs: 5
+batch_size: 32
+lr: 3.0e-4
+weight_decay: 1.0e-4
+patience: 5
+num_workers: 2

@@ -1,0 +1,289 @@
+
+
+
+Comparative Performance Evaluation of Deep Learning Architectures for Multi-Class Brain Tumor Classification 	Using MRI Images
+
+Deep Learning Project
+[ICT-4442]
+
+Submitted By
+Neema Naveen Kini (230953070)
+Varun Naik (230953388)
+Abhidutta Mukund Giri (230953232)
+Vansh Vakharia (230911178)
+ 
+
+
+ 
+
+
+SCHOOL OF COMPUTER ENGINEERING
+MANIPAL INSTITUTE OF TECHNOLOGY, 
+MANIPAL ACADEMY OF HIGHER EDUCATION
+
+August 2026; revised 30 October 2026
+
+
+github repository link
+https://github.com/abhi-mike-g/Brain_Tumor_Classifier
+
+Abstract
+Brain tumour classification from Magnetic Resonance Imaging (MRI) images is an important application of deep learning in medical image analysis. This project compares four architectures—Multilayer Perceptron (MLP), ResNet18, CNN-LSTM, and Vision Transformer (ViT)—for multi-class brain tumour classification. At this report revision, full-split test evaluations are available for all four models on the same held-out split. The MLP, CNN-LSTM, and compact ViT runs are short preliminary CPU experiments, not optimized benchmarks.
+The study uses the publicly available MRI Brain Tumour Image Dataset compiled by Nickparvar. The audited copy used in the repository contained 7,200 files; after excluding 203 filenames containing "aug", 6,997 images remain in the four classes: Glioma, Meningioma, Pituitary Tumour, and No Tumour.
+A common preprocessing and experimental framework is used to facilitate a controlled comparison. The images are resized and normalized before model training and evaluation. The selected architectures represent different approaches to visual representation learning: the MLP provides a fully connected baseline, ResNet18 uses convolutional residual learning, CNN-LSTM combines spatial feature extraction with sequential modelling, and ViT uses patch-based representations and self-attention.
+Model performance is compared using accuracy, precision, recall, F1-score, class-wise confusion patterns, parameter count, and computational requirements. The study analyses how architectural differences influence classification performance under a common experimental setup; the short training schedules, particularly for ViT, limit conclusions about fully optimized performance.
+
+Introduction
+
+Brain tumours are abnormal growths of cells within or around the brain and can vary substantially in their location, morphology, progression, and clinical significance. Accurate identification of tumour type is important for subsequent clinical assessment and treatment planning. Magnetic Resonance Imaging (MRI) is widely used for examining intracranial abnormalities because it provides detailed soft-tissue contrast and allows structural differences within the brain to be visualized without the use of ionizing radiation. However, manual examination of MRI scans requires specialized expertise and can be time-consuming. Deep learning-based image classification can therefore serve as a computer-aided approach for automatically identifying patterns associated with different brain tumour categories.
+The present project investigates multi-class classification of brain MRI images into four categories: Glioma, Meningioma, Pituitary Tumour, and No Tumour. The project uses the publicly available Brain Tumour MRI Dataset by Nickparvar, which combines images from multiple public sources, including Figshare, SARTAJ, and Br35H [1]. The audited repository copy contained 7,200 files. Excluding 203 files whose names contain "aug" leaves 6,997 images for the fixed experiment split; this explains the difference from the dataset's commonly reported 7,023-image count.
+Although deep learning models have demonstrated strong performance in medical image classification, different architectures process image information in fundamentally different ways. Consequently, evaluating models under different preprocessing procedures, dataset partitions, or evaluation protocols can make direct comparison difficult. This project addresses this issue by comparing four architectures representing distinct deep learning families under a common experimental setup: a Multilayer Perceptron (MLP), ResNet18, a CNN-LSTM hybrid, and a Vision Transformer (ViT).
+The MLP serves as the classical baseline and processes a flattened representation of the MRI image without explicitly modelling two-dimensional spatial relationships. ResNet18 represents convolutional neural networks and uses convolutional filters together with residual connections to learn hierarchical spatial features [4]. The CNN-LSTM architecture combines convolutional feature extraction with Long Short-Term Memory (LSTM) units, allowing spatial image features to be represented as a sequence and subsequently modelled through recurrent processing [5]. Finally, the Vision Transformer divides an image into patches and applies self-attention to model relationships between different image regions [7].
+To ensure a meaningful comparison, all four models are evaluated using a consistent dataset partition, preprocessing pipeline, and evaluation protocol. Performance is assessed using classification accuracy, precision, recall, F1-score, class-wise errors, and computational characteristics. This enables the study to investigate not only which architectures provide strong predictive performance but also how their different architectural assumptions influence their behaviour on brain MRI images.
+The scope of the project is restricted to image-level multi-class brain tumour classification. It does not attempt tumour segmentation, tumour grading, survival prediction, or clinical diagnosis. Instead, the project provides a controlled experimental comparison of representative classical, convolutional, recurrent, and attention-based deep learning architectures. The resulting analysis is intended to provide insight into the strengths, limitations, and computational trade-offs of different deep learning approaches for automated brain MRI classification.
+
+Dataset
+MRI Brain Tumour Image Dataset (Nickparvar, Kaggle): the audited download contained 7,200 image files from public sources including Figshare, SARTAJ, and Br35H. The repository excludes 203 files with "aug" in their names and uses 6,997 images across Glioma, Meningioma, Pituitary Tumour, and No Tumour. The fixed split contains 4,898 training, 1,051 validation, and 1,048 test images. Exact and near-duplicate images are grouped before assigning whole groups to splits; the split report records zero groups spanning multiple splits. Images are converted to RGB, resized to 224 × 224, and normalized. Training-only random crop, rotation, and horizontal-flip augmentation is applied; validation and test preprocessing is deterministic. See `splits/split_report.txt` and `configs/common.yaml` for the recorded counts and settings.
+Kaggle link: https://www.kaggle.com/datasets/masoudnickparvar/brain-tumor-mri-dataset
+
+| Class | Train | Validation | Test | Total |
+|---|---:|---:|---:|---:|
+| Glioma | 1,260 | 271 | 269 | 1,800 |
+| Meningioma | 1,118 | 240 | 239 | 1,597 |
+| No tumour | 1,259 | 270 | 271 | 1,800 |
+| Pituitary | 1,261 | 270 | 269 | 1,800 |
+| **Total** | **4,898** | **1,051** | **1,048** | **6,997** |
+
+II. LITERATURE REVIEW
+
+The selected studies span neural-network baselines, convolutional residual learning, recurrent sequence modelling, transformer attention, and applications to brain MRI. Reported results from different studies are contextual only: their data versions, splits, class definitions, and evaluation protocols are not necessarily comparable to this project's fixed split.
+
+| Paper | Method | Dataset/task | Key result or contribution | Relevance |
+|---|---|---|---|---|
+| Rumelhart et al. [2] | Back-propagation for multilayer networks | Learning experiments; not a brain-MRI benchmark | Demonstrated learning internal representations in multilayer networks with error back-propagation | Foundational learning method for the MLP baseline |
+| LeCun et al. [3] | Convolutional neural network (LeNet) | Handwritten character/digit recognition | Showed that learned convolutional features and spatial weight sharing work effectively for image recognition | Contrasts spatial CNN feature extraction with the flattened MLP |
+| He et al. [4] | Residual network (ResNet) | ImageNet classification | A 152-layer residual network achieved 3.57% top-5 error in the ImageNet 2015 classification task | Establishes residual learning; this project evaluates the smaller ResNet18 |
+| Hochreiter and Schmidhuber [5] | Long Short-Term Memory | Theoretical recurrent-network method; no MRI dataset | Introduced gated memory cells to learn long-range dependencies more reliably | Motivates sequential processing of CNN feature-map positions |
+| Vaswani et al. [6] | Transformer with self-attention | WMT 2014 machine translation | Reported 28.4 BLEU on English-to-German and 41.8 BLEU on English-to-French translation | Provides the attention mechanism underlying transformer encoders |
+| Dosovitskiy et al. [7] | Vision Transformer with patch tokens | ImageNet and larger pretraining datasets | Showed image-patch sequences can achieve competitive image-classification performance after large-scale pretraining and fine-tuning | Direct architectural basis for the ViT comparison |
+| Deepak and Ameer [8] | Transfer-learned GoogLeNet features with conventional classifiers | Three-class brain-tumour MRI classification | Reported strong classification performance using deep features; the study's dataset/protocol differs from this project | Brain-MRI evidence for transfer learning; not a directly comparable score |
+| Swati et al. [9] | Transfer learning for content-based brain-tumour MRI retrieval | Brain MR image retrieval | Demonstrated use of deep transfer-learned image features for tumour-image retrieval | Supports transfer-learned MRI representations; retrieval differs from classification |
+| Reddy et al. [10] | Fine-tuned ViT variants and pretrained CNNs | 7,023 MRI images; glioma, meningioma, pituitary, no tumour | Reported 98.70% accuracy for FTVT-L/16; its split and protocol differ from the present grouped split | Most directly related four-class dataset study and attention-model precedent |
+
+These papers motivate the model families and the need for a controlled comparison. Benchmark scores are not compared as if they were measured on the same test data; the project will interpret differences only under its shared split and evaluation protocol.
+
+III. OBJECTIVES
+
+The objectives of the proposed project are:
+•	To establish a common and reproducible experimental framework for four-class brain tumor MRI classification and evaluate four deep learning architectures representing different model families: Multilayer Perceptron (MLP), ResNet18, CNN-LSTM, and Vision Transformer (ViT).
+•	To compare the four architectures using common evaluation criteria, including classification accuracy, per-class precision, recall, F1-score, parameter efficiency, and computational requirements, while analysing class-specific confusion patterns and differences in model behaviour.
+•	To analyse the accuracy-to-computational-cost trade-off among the selected architectures and determine the architectural characteristics associated with their observed performance, with consideration for their potential suitability as research-oriented computer-aided MRI classification systems.
+
+
+DATA PREPROCESSING AND AUGMENTATION
+
+The preprocessing and data augmentation pipeline is implemented in the btc/data.py module and configured through configs/common.yaml. The same preprocessing pipeline is strictly shared across all four architectures Multilayer Perceptron (MLP), ResNet18, CNN-LSTM, and Vision Transformer (ViT)to ensure a controlled and fair comparison of model performance.
+
+1. Initial Image Loading and Filtering
+Before applying any preprocessing transformations, the dataset undergoes filtering and leakage-prevention procedures.
+
+1.1 Synthetic Copy Exclusion
+
+Image files containing the substring "aug" in their filenames are excluded during the dataset splitting stage. This removes 203 artificially duplicated images present in the original Kaggle dataset and prevents these synthetic copies from introducing distribution bias into the experimental dataset.
+
+1.2 Data Leakage Prevention
+
+To prevent highly similar images originating from the same MRI scan from appearing across different dataset splits, perceptual difference hashing (dHash) is employed. A 64-bit dHash is calculated for each image, and images with a Hamming distance of 2 or less are grouped as near-identical images. These groups are kept within the same dataset partition, ensuring that visually identical or near-identical slices do not occur simultaneously in the training, validation, and test sets.
+
+This procedure is particularly important for medical image classification because random image-level splitting can otherwise result in information leakage and artificially inflated evaluation performance.
+
+1.3 Image Colour Format
+
+Images are loaded using the Python Imaging Library (PIL) and converted into a three-channel RGB representation. The conversion is performed using:
+
+im.convert("RGB")
+
+Although MRI images are inherently grayscale, converting them into three channels replicates the intensity information across the RGB channels. This allows the same input representation to be used consistently across architectures, including models initialized with ImageNet-pretrained weights.
+
+2. Training Data Augmentation
+
+Data augmentation is applied only to the training set. The objective is to improve generalization and reduce overfitting while maintaining anatomically plausible variations in MRI images.
+The training transformation pipeline consists of the following operations:
+Random Resized Crop → Random Rotation → Random Horizontal Flip → Tensor Conversion → Normalization
+
+2.1 Random Resized Crop
+
+A random crop covering between 85% and 100% of the original image area is selected, with the aspect ratio allowed to vary between 0.9 and 1.1. The resulting image is then resized to 224 × 224 pixels.
+This augmentation introduces variations in scale and framing, helping the models become less sensitive to the precise position and boundaries of the brain region.
+
+2.2 Random Rotation
+
+Images are randomly rotated within a range of −10° to +10°.
+Small rotations simulate minor variations in head positioning that may occur during MRI acquisition while avoiding extreme transformations that could produce anatomically unrealistic images.
+
+2.3 Random Horizontal Flip
+
+A horizontal flip is applied with a probability of 0.5.
+This augmentation exploits the approximate bilateral symmetry of the human brain and introduces additional spatial variation into the training data. Vertical flipping is deliberately excluded, as it would alter the superior–inferior anatomical orientation of the brain and produce unrealistic MRI representations.
+
+2.4 Tensor Conversion and Normalization
+
+After augmentation, the image is converted into a PyTorch tensor. Pixel intensity values are transformed from the original integer range of [0, 255] to floating-point values in the range [0.0, 1.0].
+The resulting tensor is then normalized using the standard ImageNet channel statistics:
+Mean: [0.485, 0.456, 0.406]
+Standard deviation: [0.229, 0.224, 0.225]
+This normalization provides a standardized input distribution and ensures compatibility with architectures that use ImageNet-pretrained weights.
+
+3. Validation and Test Data Preprocessing
+
+Unlike the training set, the validation and test sets are processed using a deterministic preprocessing pipeline. No random augmentation is applied to these datasets.
+The preprocessing sequence is:
+Resize → Tensor Conversion → Normalization
+3.1 Deterministic Resizing
+All validation and test images are resized directly to a fixed resolution of 224 × 224 pixels.
+This ensures that every image is evaluated under the same spatial conditions.
+3.2 Tensor Conversion
+The resized images are converted into PyTorch tensors, with pixel intensities scaled from [0, 255] to [0.0, 1.0].
+
+3.3 Standard Normalization
+
+The same ImageNet normalization parameters used during training are applied:
+Mean: [0.485, 0.456, 0.406]
+Standard deviation: [0.229, 0.224, 0.225]
+Using identical normalization across training, validation, and testing ensures consistency in the input representation and allows fair comparison between the different architectures.
+
+4. Summary of the Preprocessing Pipeline
+
+Processing Stage	Training Set	Validation Set	Test Set
+Image Resolution	224 × 224	224 × 224	224 × 224
+Channels	3 (RGB)	3 (RGB)	3 (RGB)
+Cropping / Zoom	Random crop, 85–100%	None	None
+Aspect Ratio Variation	0.9–1.1	None	None
+Rotation	±10°	None	None
+Horizontal Flip	Probability = 0.5	None	None
+Tensor Conversion	Applied	Applied	Applied
+Normalization	ImageNet statistics	ImageNet statistics	ImageNet statistics
+Randomness	Stochastic	Deterministic	Deterministic
+
+5. Rationale for the Common Preprocessing Pipeline
+
+A common preprocessing pipeline is maintained across all four architectures to ensure that differences in classification performance can primarily be attributed to the model architecture rather than differences in data preparation. Training-time augmentation provides controlled variability to improve generalization, whereas deterministic preprocessing for validation and testing ensures reproducible and unbiased evaluation.
+
+The combination of duplicate filtering, perceptual hashing, consistent image representation, controlled augmentation, fixed input resolution, and standardized normalization establishes a reliable preprocessing framework for the comparative evaluation of MLP, ResNet18, CNN-LSTM, and ViT architectures.
+
+
+
+
+
+
+
+
+
+
+IV. METHODOLOGY
+
+ 
+The proposed methodology consists of a common preprocessing and evaluation framework followed by the implementation and comparison of four deep learning architectures: Multilayer Perceptron (MLP), ResNet18, CNN-LSTM, and Vision Transformer (ViT). The models are evaluated under a common experimental setup to ensure that the comparison reflects differences in architectural design rather than differences in data preparation or evaluation procedures.
+
+IV-A. MULTILAYER PERCEPTRON (MLP)
+
+The Multilayer Perceptron (MLP) is implemented as a fully connected neural network and serves as a baseline architecture for the brain tumour classification task. The input MRI images are first resized and normalized as part of the common preprocessing pipeline. The resulting image representation is provided to the fully connected layers of the MLP.
+Unlike convolutional architectures, the MLP does not explicitly model spatial relationships between neighbouring pixels. Consequently, the model provides a useful baseline for examining the extent to which classification performance can be achieved without specialized spatial feature extraction. The MLP implementation is assigned to Varun Naik (230953388).
+The implementation applies adaptive average pooling to 56 × 56 before flattening, then uses three fully connected hidden layers of 512, 256, and 64 units, each with LayerNorm, ReLU, and dropout 0.3. The four-class output layer follows the final hidden layer. Its training configuration uses AdamW, learning rate 0.001, batch size 64, at most 30 epochs, weight decay 0.0001, and early stopping after seven epochs without validation macro-F1 improvement.
+
+
+IV-B. RESNET18
+
+ResNet18 is implemented as a convolutional neural network architecture for extracting spatial and hierarchical features from MRI images. The architecture uses residual connections that allow information to bypass one or more convolutional layers through shortcut paths. These connections facilitate the learning of deeper representations while helping to address optimization difficulties associated with conventional deep networks.
+For the proposed classification task, ResNet18 processes the pre-processed MRI images and progressively extracts spatial features before producing predictions for the four target classes: Glioma, Meningioma, Pituitary Tumour, and No Tumour. The architecture provides a convolution-based reference against which the MLP, CNN-LSTM, and ViT architectures can be compared. The ResNet18 implementation is assigned to Neema Naveen Kini (230953070).
+The implementation initializes the backbone with ImageNet-pretrained ResNet18 weights and replaces the final fully connected layer with dropout 0.2 and a four-class linear layer. It uses AdamW, learning rate 0.0003, batch size 32, at most 20 epochs, weight decay 0.0001, and early stopping after five epochs without validation macro-F1 improvement.
+
+IV-C. CNN-LSTM
+
+The CNN-LSTM architecture combines convolutional feature extraction with recurrent sequence modelling. The model first average-pools the common 224 × 224 input to 112 × 112, then applies four convolution, batch-normalization, ReLU, and max-pooling blocks with channel widths 16, 32, 64, and 128. The final feature-map positions are ordered as a sequence and processed by a one-layer LSTM with hidden size 128; dropout of 0.3 precedes the four-class output layer. The CNN-LSTM implementation is assigned to Abhidutta Mukund Giri (230953232). The training configuration uses AdamW, learning rate 0.0003, batch size 32, at most 20 epochs, weight decay 0.0001, and early stopping after five epochs without validation macro-F1 improvement.
+
+IV-D. VISION TRANSFORMER (VIT)
+
+The Vision Transformer (ViT) approaches image classification using a transformer-based architecture rather than conventional convolutional feature extraction. The input MRI image is divided into a sequence of image patches, and each patch is represented as an embedding. These embeddings are processed using self-attention mechanisms, allowing the model to learn relationships between different regions of the image.
+The use of self-attention provides a different mechanism for modelling image-wide relationships compared with the local receptive fields of convolutional networks. ViT is therefore included to evaluate the performance of a transformer-based architecture alongside the MLP, ResNet18, and CNN-LSTM models. The ViT implementation is assigned to Vansh Vakharia (230911178).
+The implemented compact ViT uses 16 × 16 patches, 192-dimensional embeddings, four transformer-encoder layers, three attention heads, and dropout 0.1. It is trained from random initialization with AdamW, learning rate 0.0003, batch size 32, at most 20 epochs, weight decay 0.0001, and early stopping after five epochs without validation macro-F1 improvement. The ViT implementation is assigned to Vansh Vakharia (230911178).
+
+
+V. PRELIMINARY IMPLEMENTATION AND RESULTS
+
+Four full test evaluations are saved at this revision, all using seed 42 and the fixed 1,048-image test split. ImageNet-pretrained ResNet18, selected at epoch 15 by validation macro-F1, achieved accuracy 0.9838 and macro precision, recall, and F1 of 0.9837, 0.9835, and 0.9836. Its per-class F1 was 0.9777 for glioma, 0.9790 for meningioma, 0.9889 for no tumour, and 0.9889 for pituitary tumour. The confusion matrix contains 17 errors. The MLP was trained for five CPU epochs and achieved accuracy 0.7071 and macro precision, recall, and F1 of 0.7194, 0.7018, and 0.7052; its largest error pattern was meningioma predicted as glioma (88 images). The five-epoch CNN-LSTM achieved accuracy 0.8387 and macro precision, recall, and F1 of 0.8476, 0.8389, and 0.8394; its largest error pattern was glioma predicted as meningioma (57 images). The compact ViT completed five CPU epochs and its best checkpoint was selected at epoch 5 by validation macro-F1; test accuracy was 0.6861 and macro precision, recall, and F1 were 0.6847, 0.6801, and 0.6806. ViT per-class F1 was 0.6427 (glioma), 0.5055 (meningioma), 0.8177 (no tumour), and 0.7563 (pituitary); its largest error pattern was meningioma predicted as glioma (78 images). The MLP, CNN-LSTM, and ViT are preliminary short CPU runs and not optimized. Results are single runs and should not be interpreted as estimates of run-to-run variability.
+
+| Model | Test accuracy | Macro precision | Macro recall | Macro F1 | Evidence in repository |
+|---|---:|---:|---:|---:|---|
+| ResNet18 (ImageNet-pretrained) | 0.9838 | 0.9837 | 0.9835 | 0.9836 | Saved test metrics, per-class report, confusion matrix, predictions, and training history |
+| MLP (5 CPU epochs) | 0.7071 | 0.7194 | 0.7018 | 0.7052 | Saved test metrics, per-class report, confusion matrix, predictions, and training history |
+| CNN-LSTM (5 CPU epochs) | 0.8387 | 0.8476 | 0.8389 | 0.8394 | Saved test metrics, per-class report, confusion matrix, predictions, and training history |
+| Vision Transformer (5 CPU epochs; best epoch 5) | 0.6861 | 0.6847 | 0.6801 | 0.6806 | Saved test metrics, per-class report, confusion matrix, predictions, and training history |
+
+The repository contains full test evaluations for all four models, and the cross-model table in `reports/model_comparison.md` confirms that the results use the same split fingerprint and class supports. MLP, CNN-LSTM, and ViT were each run for five CPU epochs. These short runs should not be treated as optimized benchmarks.
+
+
+
+
+
+ACKNOWLEDGEMENT
+
+The authors would like to express their sincere gratitude to Manipal Institute of Technology, Manipal Academy of Higher Education (MAHE) and the School of Computer Engineering for providing the academic environment, resources, and support required to undertake this project.
+The authors would also like to thank their faculty guide and the faculty members associated with the Deep Learning Project (ICT-4442) for their guidance, valuable feedback, and encouragement throughout the course of the project.
+Finally, the authors acknowledge the publicly available MRI Brain Tumour Image Dataset compiled by Nickparvar and made available through Kaggle, which served as the primary dataset for this study.
+
+REFERENCES
+
+[1] N. Nickparvar, “Brain Tumor MRI Dataset,” Kaggle, 2021. https://www.kaggle.com/datasets/masoudnickparvar/brain-tumor-mri-dataset
+[2] D. E. Rumelhart, G. E. Hinton, and R. J. Williams, “Learning representations by back-propagating errors,” Nature, vol. 323, pp. 533–536, 1986. doi:10.1038/323533a0.
+[3] Y. LeCun, L. Bottou, Y. Bengio, and P. Haffner, “Gradient-Based Learning Applied to Document Recognition,” Proceedings of the IEEE, vol. 86, no. 11, pp. 2278–2324, 1998. doi:10.1109/5.726791.
+[4] K. He, X. Zhang, S. Ren, and J. Sun, “Deep Residual Learning for Image Recognition,” Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR), pp. 770–778, 2016. doi:10.1109/CVPR.2016.90.
+[5] S. Hochreiter and J. Schmidhuber, “Long Short-Term Memory,” Neural Computation, vol. 9, no. 8, pp. 1735–1780, 1997. doi:10.1162/neco.1997.9.8.1735.
+[6] A. Vaswani et al., “Attention Is All You Need,” Advances in Neural Information Processing Systems, vol. 30, 2017.
+[7] A. Dosovitskiy et al., “An Image Is Worth 16×16 Words: Transformers for Image Recognition at Scale,” International Conference on Learning Representations (ICLR), 2021. arXiv:2010.11929.
+[8] S. Deepak and P. M. Ameer, “Brain tumor classification using deep CNN features via transfer learning,” Computers in Biology and Medicine, vol. 111, article 103345, 2019. doi:10.1016/j.compbiomed.2019.103345.
+[9] Z. N. K. Swati et al., “Content-Based Brain Tumor Retrieval for MR Images Using Transfer Learning,” IEEE Access, vol. 7, pp. 17809–17822, 2019. doi:10.1109/ACCESS.2019.2892455.
+[10] C. K. K. Reddy et al., “A fine-tuned vision transformer based enhanced multi-class brain tumor classification using MRI scan imagery,” Frontiers in Oncology, vol. 14, article 1400341, 2024. doi:10.3389/fonc.2024.1400341.
+
+The review table summarizes nine papers ([2]–[10]); [1] identifies the dataset. Verify any numerical claim against the cited paper's full text before submission. Implementation status at this report revision (30 October 2026): all four models have saved full-split metrics and a common-split comparison table; the MLP, CNN-LSTM, and ViT runs remain preliminary CPU experiments.
+
+
+
+
+Model-to-Member Assignment:
+Member	Name & Reg. No.	Model / Family Owned	Role
+Member 1	Varun Naik(230953388)	MLP (Classical baseline)	Pixel/feature-based multilayer perceptron; performance analysis
+Member 2	Neema Naveen Kini(230953070)	ResNet18 (CNN)	Residual CNN architecture; implementation, training, evaluation
+Member 3	Abhidutta Mukund Giri(230953232)
+	CNN-LSTM (RNN/LSTM variant)	Hybrid CNN, LSTM development and experimental evaluation
+Member 4	Vansh Vakharia
+230911178	Vision Transformer (Attention-based)	Patch-embedding self-attention model; implementation, training, evaluation
+
+Work Plan (original target dates; progress checked 30 October 2026):
+Sl. No.	Component / Work Element / Milestone	Expected Completion	Current status / evidence
+1	Dataset audit and common preprocessing/fixed split	30 Aug 2026	Complete; audited 7,200 files and verified all 6,997 split paths and labels
+2	MLP baseline implementation and initial experiment	10 Sept 2026	Complete as a five-epoch preliminary CPU run; metrics saved
+3	ResNet18 implementation and training	10 Sept 2026	Complete; saved checkpoint evaluated on the fixed test set
+4	CNN-LSTM implementation and experiment	18 Sept 2026	Complete as a five-epoch preliminary CPU run; test metrics saved
+5	Vision Transformer implementation and experiment	18 Sept 2026	Complete as a two-epoch preliminary CPU run; best checkpoint evaluated
+6	Literature review and preliminary observations	25 Sept 2026	9-paper comparison table added; all 4 models have saved test results
+7	Standardized evaluation and comparison	5 Oct 2026	All models evaluated on the fixed split; comparison table generated
+8	Error analysis and final report	20 Oct 2026	Class-wise metrics and confusion patterns are available for all four models; final report integration remains
+9	Presentation preparation and team rehearsal	29 Oct 2026	Not verifiable from repository; team must confirm
+
+INDIVIDUAL CONTRIBUTION LOG AND SIGN-OFF
+
+The public repository history available during this review shows project commits dated 3–4 October 2026, after the 25 September interim deadline. It is not evidence that the planned tasks were completed by the interim due date. The names below describe the visible repository history and model assignment; each student must review and correct this record before signing.
+
+| Member | Work evidenced in the repository | Visible commit date(s) | Student verification/signature |
+|---|---|---|---|
+| Neema Naveen Kini | Shared data/split pipeline, ResNet18 implementation and saved evaluation | 3–4 Oct 2026 | To be signed by member |
+| Varun Naik | MLP baseline implementation | 4 Oct 2026 | To be signed by member |
+| Abhidutta Mukund Giri | Initial repository setup and project README | 3 Oct 2026 | To be signed by member |
+| Vansh Vakharia | CNN-LSTM file creation/update | 4 Oct 2026 | To be signed by member |
+
+These are GitHub-attributed activities, not a substitute for the team's signed task matrix. The model ownership and contributions must be reconciled by all members, particularly where commit authorship and the assigned model owner differ. Insert each member's genuine signature after verification; no signatures have been supplied or generated here.
+
+ACADEMIC-INTEGRITY AND AI-ASSISTANCE DISCLOSURE
+
+GitHub Copilot (AI coding assistant) was used on 30 October 2026 to inspect the repository against the supplied course requirements, repair the CNN-LSTM implementation, add a compact ViT and shared training/evaluation/comparison support, and revise parts of this report and README. The team must review and understand these changes, disclose any additional AI or external-code use, and identify the affected sections in the submitted disclosure. No Turnitin similarity/AI report was present in the workspace; the team must run the institution-approved checker and attach its authentic report. No similarity or AI-content percentage is claimed here.

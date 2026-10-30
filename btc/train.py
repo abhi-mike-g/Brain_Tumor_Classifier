@@ -46,7 +46,12 @@ def run_epoch(model, loader, device, criterion, optimizer=None, scaler=None):
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", default="resnet18", choices=["resnet18", "mlp"], help="model architecture (default: resnet18)")
+    ap.add_argument(
+        "--model",
+        default="resnet18",
+        choices=["mlp", "resnet18", "cnn_lstm", "vit"],
+        help="model architecture (default: resnet18)",
+    )
     ap.add_argument("--epochs", type=int)
     ap.add_argument("--limit", type=int, help="max images per class per split (smoke test)")
     ap.add_argument("--device")
@@ -66,6 +71,7 @@ def main() -> None:
 
     seed_everything(cfg["seed"])
     device = torch.device(args.device or ("cuda" if torch.cuda.is_available() else "cpu"))
+    cfg["training_device"] = str(device)
     run_dir = rel(cfg["out_dir"]) / cfg["run_name"]
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "config.json").write_text(json.dumps(cfg, indent=2))
@@ -75,17 +81,8 @@ def main() -> None:
     pretrained_val = cfg.get("pretrained", "n/a")
     print(f"model={args.model}  device={device}  train={len(train_dl.dataset)}  val={len(val_dl.dataset)}  pretrained={pretrained_val}")
 
-    if args.model == "mlp":
-        from .mlp import build_model as build_mlp_model
-        model = build_mlp_model(
-            num_classes=len(cfg["classes"]),
-            in_size=cfg["image"]["size"],
-            hidden_dims=tuple(cfg.get("hidden_dims", (512, 256, 64))),
-            dropout=cfg.get("dropout", 0.3),
-        ).to(device)
-    else:
-        from .resnet18 import build_model as build_resnet18_model
-        model = build_resnet18_model(len(cfg["classes"]), cfg.get("pretrained", True), cfg.get("dropout", 0.2)).to(device)
+    from .models import build_model
+    model = build_model(cfg).to(device)
     criterion = nn.CrossEntropyLoss()
     opt = torch.optim.AdamW(model.parameters(), lr=cfg["lr"], weight_decay=cfg["weight_decay"])
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=cfg["epochs"])

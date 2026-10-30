@@ -8,6 +8,7 @@ classification_report.txt, predictions.csv (for error analysis).
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 
 import pandas as pd
@@ -33,7 +34,8 @@ def predict(model, loader, device):
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", default=None, choices=["resnet18", "mlp"], help="model architecture (inferred from config.json if not set)")
+    model_names = ["mlp", "resnet18", "cnn_lstm", "vit"]
+    ap.add_argument("--model", default=None, choices=model_names, help="model architecture (inferred from config.json if not set)")
     ap.add_argument("--run-name", default=None)
     ap.add_argument("--limit", type=int)
     ap.add_argument("--device")
@@ -43,12 +45,21 @@ def main() -> None:
     if model_arg:
         cfg = load_config(model_arg)
         run_dir = rel(cfg["out_dir"]) / (args.run_name or cfg["run_name"])
-    elif args.run_name and (rel("results/mlp") / args.run_name / "config.json").exists():
-        cfg = load_config("mlp")
-        run_dir = rel("results/mlp") / args.run_name
+    elif args.run_name:
+        candidates = [
+            (load_config(name), rel(load_config(name)["out_dir"]) / args.run_name)
+            for name in model_names
+        ]
+        candidates = [(candidate_cfg, path) for candidate_cfg, path in candidates if (path / "config.json").exists()]
+        if len(candidates) != 1:
+            raise FileNotFoundError(
+                f"Expected exactly one results/<model>/{args.run_name}/config.json; found {len(candidates)}. "
+                "Pass --model to select the model."
+            )
+        cfg, run_dir = candidates[0]
     else:
         cfg = load_config("resnet18")
-        run_dir = rel(cfg["out_dir"]) / (args.run_name or cfg["run_name"])
+        run_dir = rel(cfg["out_dir"]) / cfg["run_name"]
 
     saved = json.loads((run_dir / "config.json").read_text())  # the config this run was trained with
     classes = saved["classes"]
@@ -56,25 +67,33 @@ def main() -> None:
 
     model_type = saved.get("model_name", args.model or "resnet18").lower()
     ckpt = torch.load(run_dir / "best.pt", map_location=device)
-
-    if model_type == "mlp":
-        model_label = "MLP"
-        from .mlp import build_model as build_mlp_model
-        model = build_mlp_model(
-            num_classes=len(classes),
-            in_size=saved["image"]["size"],
-            hidden_dims=tuple(saved.get("hidden_dims", (512, 256, 64))),
-            dropout=saved.get("dropout", 0.3),
-        ).to(device)
-    else:
-        model_label = "ResNet18"
-        from .resnet18 import build_model as build_resnet18_model
-        model = build_resnet18_model(len(classes), pretrained=False, dropout=saved.get("dropout", 0.2)).to(device)
+    model_label = {"mlp": "MLP", "resnet18": "ResNet18", "cnn_lstm": "CNN-LSTM", "vit": "ViT"}.get(model_type)
+    if model_label is None:
+        raise ValueError(f"Unknown model_name in saved config: {model_type!r}")
+    from .models import build_model
+    build_cfg = dict(saved)
+    build_cfg["model_name"] = model_type
+    if model_type == "resnet18":
+        build_cfg["pretrained"] = False
+    model = build_model(build_cfg).to(device)
 
     model.load_state_dict(ckpt["model"])
 
-    result = {"model": model_label, "run_name": saved["run_name"], "pretrained": saved.get("pretrained", False),
-              "best_epoch": ckpt["epoch"], "seed": saved["seed"], "device": str(device)}
+    split_path = rel(saved["data"]["split_csv"])
+    split_sha256 = hashlib.sha256(split_path.read_bytes()).hexdigest()
+    result = {
+        "model": model_label,
+        "model_name": model_type,
+        "run_name": saved["run_name"],
+        "pretrained": saved.get("pretrained", False),
+        "best_epoch": ckpt["epoch"],
+        "seed": saved["seed"],
+        "device": str(device),
+        "evaluation_device": str(device),
+        "training_device": saved.get("training_device", "not recorded in config"),
+        "split_csv": saved["data"]["split_csv"],
+        "split_sha256": split_sha256,
+    }
     for split in ("val", "test"):
         dl = make_loader(saved, split, saved["batch_size"], saved["num_workers"], args.limit)
         ys, ps, probs = predict(model, dl, device)
